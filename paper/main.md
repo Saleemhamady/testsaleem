@@ -17,7 +17,9 @@ status: preprint draft v1.0
 
 Generative artificial intelligence (GenAI) has simultaneously produced two effects on higher education that are usually discussed in isolation. First, it has degraded the inferential validity of the text-based, product-oriented assessments that dominate learning management systems (LMS): essays, short-answer questions, problem sets and take-home reports can now be produced at expert-plausible quality in seconds, with no reliable post hoc detection. Second, and less discussed, it has collapsed the marginal cost of authoring interactive learning objects — games, micro-simulators, scenario engines and parameterised problem worlds — from days of specialist developer time to minutes of prompt-and-review time by a subject teacher.
 
-This paper argues that the second effect is the appropriate response to the first, and specifies how the pairing can be operationalised inside Moodle, the most widely deployed open-source LMS in higher education. We present **GAIMS** (Generative-AI-authored Interactive Micro-Simulations), a design framework in which an instructor specifies a learning objective and a constraint set; an LLM-based authoring pipeline generates a playable, parameterised artefact (H5P, HTML5/xAPI or LTI-delivered); and Moodle's existing native machinery — the question engine with `interactive-with-multiple-tries` and adaptive behaviours, calculated/`Formulas`/STACK question types, the gradebook with calculated categories, activity completion with conditions, restrict-access chains, the Workshop module, and the standard logging/analytics store — performs grading, feedback, progression and monitoring without bespoke server-side code.
+This paper argues that the second effect is the appropriate response to the first, and specifies how the pairing can be operationalised inside Moodle, the most widely deployed open-source LMS in higher education. We present **GAIMS** (Generative-AI-authored Interactive Micro-Simulations), a design framework in which an instructor specifies a learning objective and a constraint set; an LLM-based authoring pipeline generates a playable, parameterised artefact; and Moodle's existing native machinery — the question engine with `interactive-with-multiple-tries` and adaptive behaviours, calculated/`Formulas`/STACK question types, the gradebook with calculated categories, activity completion with conditions, restrict-access chains, the Workshop module, and the standard logging/analytics store — performs grading, feedback, progression and monitoring without bespoke server-side code.
+
+The framework's lightest-weight and most immediately deployable integration is what we call the **Cloze answer-field bridge**: the generated game runs inside the text of a standard Moodle *Embedded answers (Cloze)* question and writes its score, and a compact record of the learner's trajectory, into hidden Cloze answer fields, which the question engine then grades as ordinary responses. This requires no plugin, no H5P, no external tool and no server-side code, and can therefore be deployed by an individual teacher without institutional permission — a property we argue matters more for adoption than any technical elegance. We give a complete, browser-tested worked example.
 
 The framework's integrity claim is deliberately narrow and defensible. We do not claim that GenAI-authored games are un-cheatable; multimodal agents can operate interfaces. We claim instead that they shift the economics and the evidentiary basis of assessment in three specific ways: (i) **per-student parameterisation** makes answer-sharing and solution-bank harvesting structurally ineffective rather than merely prohibited; (ii) **process evidence** (sequence, latency, exploration path, revision pattern, resource use) is captured natively and cannot be supplied by a text-generating model asked for a final answer; and (iii) **outsourcing cost inversion** means that delegating a 25-minute interactive diagnostic task to an agent is more effortful, more detectable and less rewarding than simply doing it. We develop a threat model with an explicit attack/mitigation matrix, including the case of a student driving a computer-use agent, and we state residual risks plainly.
 
@@ -87,6 +89,8 @@ Moodle's assessment capability is best understood as a set of composable primiti
 The **question engine** separates a question's *definition* from its *behaviour*. The `interactive with multiple tries` behaviour gives per-try feedback with configurable penalty; `adaptive` mode scores continuously; `deferred feedback` supports summative use. This separation is what allows a single generated item bank to serve both formative play and summative assessment.
 
 **Randomisation primitives** include the `calculated` and `calculated multichoice` types backed by shared datasets, `random` questions drawn from a category, and — most powerfully — the `Formulas` question type and STACK. `Formulas` (Lau & Védrine, 2023) supports random and global variable declarations, multi-part questions with independent grading, unit-aware numerical answers and algebraic grading criteria; STACK (Sangwin, 2013) adds full computer-algebra-backed grading with answer tests and potential response trees, and has been shown capable of automating substantial portions of university mathematics examinations (Sangwin & Köcher, 2016). Both make *every student receiving a structurally identical but numerically distinct task* a configuration choice rather than a development project.
+
+The **Embedded answers (Cloze)** question type deserves separate mention because it is the least glamorous and, for the present purpose, the most useful. A Cloze question's text is arbitrary HTML containing inline answer-field declarations such as `{1:NUMERICAL:...}` or `{1:SHORTANSWER:...}`, each of which Moodle renders as a form input and grades independently. The question text is therefore a general-purpose container into which arbitrary markup and script can be placed alongside gradable fields — which, as Section 5.5 develops, makes it a complete delivery and grading channel for a generated interactive artefact with no additional infrastructure whatsoever.
 
 **H5P**, bundled in Moodle core since 3.8, provides interactive content types that emit xAPI statements consumed by Moodle's grade and log stores (Joubel, 2024; Singleton & Charlton, 2020). Critically for this paper, Moodle's H5P integration will grade an arbitrary custom H5P content type that reports a score, which makes H5P a general-purpose delivery envelope for generated interactive artefacts.
 
@@ -282,7 +286,9 @@ Generated activities fail in characteristic ways. The review rubric (Appendix D)
 
 ## 5. Moodle Grading-Integration Patterns
 
-The framework's fifth criterion — no bespoke server-side grading — is satisfied by four patterns. Most activities use Pattern A or B; Patterns C and D address scale and higher-order outcomes respectively. Each pattern is characterised by where evidence is produced, what carries it into Moodle, and what Moodle does with it.
+The framework's fifth criterion — no bespoke server-side grading — is satisfied by five patterns. Each is characterised by where evidence is produced, what carries it into Moodle, and what Moodle does with it.
+
+Pattern E, the Cloze answer-field bridge (§5.5), is presented last but is in practice the entry point: it is the only pattern deployable by a single teacher with no plugin, no institutional approval and no infrastructure, and it is the one we recommend starting with. Patterns A and B are the natural next steps; C and D address tamper-resistance at scale and higher-order outcomes respectively.
 
 ### 5.1 Pattern A — Simulator-as-instrument, question-engine-as-grader
 
@@ -322,19 +328,55 @@ The framework's fifth criterion — no bespoke server-side grading — is satisf
 
 **Pairing.** Pattern D is always paired with A or B: the simulation grade is automatic, the justification grade is peer-assessed, and the gradebook combines them with a calculated category.
 
-### 5.5 Selecting a pattern
+### 5.5 Pattern E — the Cloze answer-field bridge
 
-| Requirement | A | B | C | D |
-|---|---|---|---|---|
-| No server to operate | ✔ | ✔ | ✘ | ✔ |
-| Trajectory/process evidence | ✘ | ✔ | ✔ | partial |
-| Tamper-resistant scoring | ✔ | ✘ | ✔ | ✔ |
-| Algebraic / unit-aware grading | ✔ | ✘ | ✔ | ✘ |
-| Higher-order judgement | ✘ | ✘ | ✘ | ✔ |
-| Authoring effort | low | medium | high | low |
-| Suitable for summative use | ✔ | with care | ✔ | ✔ |
+**Shape.** The generated artefact is placed *directly in the question text* of a standard Moodle **Embedded answers (Cloze)** question, together with one or more Cloze answer-field declarations wrapped in hidden elements. The artefact's JavaScript locates those rendered inputs and writes to them as the learner plays: the score into a `NUMERICAL` field, and optionally a compact trajectory record into a `SHORTANSWER` field. When the learner submits, Moodle grades those responses exactly as it grades any other Cloze response, and the mark flows to the gradebook, the response report and the question statistics with no special handling.
 
-A pragmatic default for a course unit: **A for summative marks, B for formative mastery gating, D once per semester for judgement outcomes, C only where A/B genuinely cannot serve.**
+```
+generated game (HTML/JS in the question text)
+        │  setScore(n) / logStep(tag)
+        ▼
+hidden {1:NUMERICAL:…} and {1:SHORTANSWER:…} inputs
+        │  ordinary form submission
+        ▼
+Moodle question engine → gradebook, reports, item statistics
+```
+
+**Why it matters more than its simplicity suggests.** Patterns A–D each require something from someone other than the teacher: a plugin installed (`Formulas`, STACK), H5P enabled, a tool registered, or a Workshop configured across a cohort. Pattern E requires *nothing*. A teacher with permission to author a question can deploy a generated, automatically graded interactive activity the same afternoon, on an unmodified Moodle. Given that institutional Moodle estates are conservatively managed and that the adoption record of proposals requiring new server components is poor (§9.4), this property is worth more than the technical advantages of the other patterns. It is also the pattern that makes the framework available to school teachers and to under-resourced institutions, which is where the affordability argument of §1.1 has the most force.
+
+**Grading correctly.** A subtlety here is consequential and easy to get wrong. A `NUMERICAL` Cloze answer is graded **right or wrong against a tolerance**; it does not scale the mark with the submitted value. A field declared as `{1:NUMERICAL:=7:2}` therefore awards full marks for any score between 5 and 9 and zero for everything else, including a perfect score — which for a ten-point game inverts the intended grading. Proportional autograding requires one accepted answer per attainable score, each carrying its own percentage:
+
+```
+{1:NUMERICAL:=10:0~%90%9:0~%80%8:0~%70%7:0~%60%6:0~%50%5:0~%40%4:0~%30%3:0~%20%2:0~%10%1:0~%0%0:0}
+```
+
+This is mechanically generable from the game's maximum score, and Appendix E supplies the generator. We record the error because it is silent: the question imports, previews, plays and submits without complaint, and produces wrong marks.
+
+**Recording process, not only outcome.** A second hidden field declared as `{1:SHORTANSWER:=*}` accepts any value and therefore records rather than grades. Writing a short trajectory tag to it at each meaningful step — which question, what the learner did, whether it was right — puts process evidence into Moodle's ordinary response report, where an instructor already looks. This is the cheapest available implementation of the reduced-fidelity stealth assessment of §3.2, and it is what makes Pattern E an evidentiary improvement over a bare score rather than merely a convenient one. The wildcard subquestion still carries weight, so the question's maximum grade must be set with that in mind.
+
+**Security: what hiding the field does and does not do.** The answer fields are hidden with `display:none`. This removes them from the learner's view and prevents accidental editing. It provides no protection against deliberate editing: anyone who opens a browser console can assign the field a value directly, and no amount of client-side JavaScript can prevent this, because the code enforcing the rule is code the learner controls. A checksum or an obfuscated token raises the cost from *type a number* to *read the JavaScript*; that is a genuine increase against a ten-year-old and no obstacle whatever to a motivated undergraduate.
+
+We state this plainly because the temptation to describe a hidden field as tamper-proof is strong and the claim is false. The correct inference is not that the pattern is unusable but that its stakes must match its assurance: Pattern E is well suited to formative practice, mastery gating and low-weight continuous assessment, and unsuited to carrying high-stakes marks unaided. Where marks matter, Pattern E pairs with Pattern A (the game is formative and gates a tamper-resistant question) or gives way to Pattern C. The trajectory field supplies a secondary signal — a forged maximum score with an empty or incoherent trace is visible in the response report — which is useful for a conversation and, per §7.3, is not evidence for a misconduct case.
+
+**Additional failure modes.** Beyond the grading error above, the pattern has several sharp edges that recur across generated artefacts and are therefore worth enumerating as prompt constraints rather than rediscovering per activity: a `<button>` inside Moodle's question form defaults to `type="submit"` and will submit the attempt when pressed; `document.currentScript` is null if the script is ever re-inserted rather than parsed with the page, so an unguarded `.closest()` call makes the game silently fail to appear; a `NaN` written to the answer field submits as a blank response and scores zero; and if the answer field is absent — which is how some review states render — a naive read-only test leaves the game live while every point the learner earns goes nowhere. Appendix E's hardened template addresses each of these, and the accompanying browser test asserts the resulting contract.
+
+**Applicability limits.** Pattern E carries whatever the artefact can express as a response value, so it suits scores, counts, derived quantities and short trajectory digests. It is not suited to long trajectories (the response is a single text value), to artefacts requiring server-side state, or to anything needing tamper-resistant scoring. Sites also vary in whether `<script>` in question text survives filtering, which is a deployment prerequisite to test once rather than a per-activity concern.
+
+### 5.6 Selecting a pattern
+
+| Requirement | A | B | C | D | E |
+|---|---|---|---|---|---|
+| No server to operate | ✔ | ✔ | ✘ | ✔ | ✔ |
+| No plugin or admin action required | ✘ | ✔ | ✘ | ✔ | ✔ |
+| Deployable by one teacher, unaided | ✘ | partial | ✘ | ✘ | ✔ |
+| Trajectory/process evidence | ✘ | ✔ | ✔ | partial | ✔ (short) |
+| Tamper-resistant scoring | ✔ | ✘ | ✔ | ✔ | ✘ |
+| Algebraic / unit-aware grading | ✔ | ✘ | ✔ | ✘ | ✘ |
+| Higher-order judgement | ✘ | ✘ | ✘ | ✔ | ✘ |
+| Authoring effort | low | medium | high | low | low |
+| Suitable for summative use | ✔ | with care | ✔ | ✔ | low weight only |
+
+A pragmatic default for a course unit: **start with E to get something real in front of students this week; A for summative marks; B for formative mastery gating where the trajectory is richer than a Cloze field can hold; D once per semester for judgement outcomes; C only where the others genuinely cannot serve.** The ordering is deliberate: the most common failure of educational technology proposals is not choosing the wrong architecture but never deploying one, and E is the pattern with no gatekeeper between the teacher and a working activity.
 
 ---
 
@@ -396,9 +438,31 @@ We report this episode rather than a clean result because it is the evidence for
 
 **Moodle configuration.** Pattern B for the game score; Pattern A for a short `Formulas`/multi-choice set on the reasoning; Pattern D for a written justification of why the chosen primitive is sufficient, peer-assessed. This vignette also connects to the LLM-generated-exercise literature in computing education (Sarsa et al., 2022; Finnie-Ansley et al., 2022), where generation quality for programming artefacts is best documented.
 
-### 6.4 What the vignettes have in common
+### 6.4 Vignette 4 — "Fraction Shading": a primary-school fractions game (Pattern E, fully worked)
 
-Each moves the assessed observable from *a producible artefact* to *a trajectory through a per-student instance*, keeps all grading inside Moodle's native features, and closes the feedback loop within the activity. None of them requires the instructor to write application code; all of them require the instructor to exercise domain judgement at the two human gates. That division of labour — the model does production, the academic does validation and judgement — is the framework's central practical claim about sustainability.
+The first three vignettes are university engineering and computing. This one is deliberately not: it is a fractions game for ten-year-olds, and it is included because it is the case where the framework's affordability claim is most consequential and its assurance claim least demanding. It is also the only vignette supplied as a complete, browser-tested artefact rather than a design.
+
+**Outcome.** Given a target fraction and a shape divided into equal parts, shade the correct number of parts; recognise that the *count* of parts determines the fraction irrespective of which parts are chosen; recognise equivalent fractions presented in different denominators.
+
+**Targeted misconceptions.** (i) That the shaded parts must be adjacent or must start from a particular position; (ii) reading the denominator as the number of *unshaded* parts; (iii) failing to recognise 2/6 and 4/6 as equivalent to 1/3 and 2/3 when the shape is cut differently.
+
+**Artefact.** A single self-contained HTML/JavaScript game rendered inside the Cloze question text. It presents ten fixed questions of increasing difficulty, alternating between a circle cut into slices and a bar cut into segments. The learner clicks or keyboard-activates parts to shade them, sees a running count ("you have shaded 2 of 3 parts"), and presses *Check*. A correct count scores one point; an incorrect one scores nothing, applies no penalty, and shades the correct answer on the shape so the learner sees the target rather than only being told it. Question order is fixed rather than random, so that a child describing "question 4" and an adult looking over their shoulder see the same thing.
+
+**Accessibility.** Every part is a focusable control with an accessible name, operable with Enter or Space; shading is signalled by a hatch pattern as well as a fill colour, so it survives colour-blindness and monochrome printing; the browser's default focus ring, which for a pie wedge is drawn as a rectangle across neighbouring slices, is replaced with an outline following the actual shape; status messages are announced through an `aria-live` region; and there is no timer, because a learner using a screen reader or simply thinking must not lose points to a clock.
+
+**Moodle configuration (Pattern E alone).** One Embedded answers (Cloze) question. A hidden `NUMERICAL` field carrying the partial-credit answer list of §5.5 grades the score proportionally out of ten; a hidden `SHORTANSWER` field records the trajectory. Question penalty zero. Deferred feedback behaviour. Nothing else — no plugin, no H5P, no external tool.
+
+**Verification.** The artefact was exercised in a headless browser against a simulated Moodle Cloze DOM (Appendix E). The test plays all ten questions, deliberately failing one, and asserts that the hidden field and the visible score agree at every step; that the single wrong answer costs exactly one point and applies no penalty; that the final field value is the mark Moodle will grade; that review mode restores the saved score and renders no interactive controls; that every shape part is focusable and toggles with Enter and Space; and that the score display element is never destroyed by the game appending to its container. All checks pass.
+
+The same test suite contains one deliberately passing check labelled a known limitation: a single console statement sets the score field to ten without playing. It is written as a test rather than a footnote so that the limitation is recorded in the same place as the guarantees, and cannot quietly be forgotten when someone later proposes using this pattern for marks that matter.
+
+**Integrity properties, proportionately.** This activity carries no meaningful integrity requirement, and it would be a mistake to engineer one. A ten-year-old who edits the hidden field has forgone the practice, which is the entire value on offer; there is no credential, no ranking and no scarce good being competed for. The framework's position is that assurance should be matched to stakes rather than maximised, and that the cost of over-engineering integrity in primary education — surveillance of children, complexity that teachers cannot maintain — is real and is usually larger than the harm being prevented.
+
+### 6.5 What the vignettes have in common
+
+Each moves the assessed observable from *a producible artefact* to *a trajectory through a per-student instance*, keeps all grading inside Moodle's native features, and closes the feedback loop within the activity. None of them requires the instructor to write application code; all of them require the instructor to exercise domain judgement at the two human gates.
+
+They differ in one respect worth making explicit: the assurance each needs. Vignette 1 carries summative engineering marks and is built accordingly, with parameterisation, tamper-resistant grading and a validated answer key. Vignette 4 carries a child's fraction practice and is built accordingly, with none of that. Treating these as the same problem — which a framework claiming to solve "AI cheating" is under constant pressure to do — would make the primary-school case unbuildable and the university case complacent. That division of labour — the model does production, the academic does validation and judgement — is the framework's central practical claim about sustainability.
 
 ---
 
@@ -426,7 +490,7 @@ We consider five adversary classes, ordered by capability:
 | A3 multimodal LLM assistance | Effective | **Partially effective**: the model can advise on actions, but the student must still operate, observe and iterate — which is itself much of the target cognition | This is arguably legitimate tool-assisted practice for many outcomes; declare it in the AI-use policy rather than pretending it is prevented |
 | A4 agent operation | Effective | **Feasible but costly**: per-instance runtime, supervision, brittle UI interaction, and trajectory artefacts (uniform latencies, no exploratory error) | **Not mitigated.** Requires secured anchor points (§7.5) |
 | A5 human proxy | Effective | **Cost restored to classical contract cheating**: proxy must operate a 20-minute interactive task per instance, cannot batch | Unchanged in kind; unchanged in low prevalence at high cost |
-| Client tampering (score forging) | N/A | Blocked for Patterns A/C/D; **present for Pattern B** by construction | Keep Pattern B formative, or move to C |
+| Client tampering (score forging) | N/A | Blocked for Patterns A/C/D; **present by construction for Patterns B and E** — a hidden answer field is invisible, not protected, and a console statement sets it | Keep B and E formative or low-weight; pair with A; move to C where marks matter |
 | Seed prediction | N/A | Blocked by keyed seed derivation with a course secret | Secret leakage; rotate per cohort |
 | Replay of another user's session | N/A | Blocked by binding instance to user and attempt | Credential sharing = A5 |
 
@@ -437,6 +501,7 @@ Three explicit disclaimers, offered because the literature in this area is prone
 1. **GAIMS activities are not AI-proof.** A4 is unmitigated by design alone. Any assessment delivered to an unsupervised networked device is, in the limit, delegable.
 2. **Trajectory anomaly is not proof of misconduct.** Unusual process data has many innocent explanations: prior domain expertise, an interrupted session, assistive technology, a slow connection, or simply an efficient learner. Using it as evidence in a misconduct case would be an error of the same class as relying on AI-text detectors (Weber-Wulff et al., 2023).
 3. **Parameterisation alone is insufficient.** It defeats sharing, not solving (P3). Frameworks that stop at randomisation and declare the problem solved are mistaken.
+4. **A hidden answer field is not a secured answer field.** Hiding an input with `display:none` prevents accidental editing and nothing else. No client-side measure can prevent a learner from setting a value in code they control, and describing such a field as tamper-proof — a claim this pattern invites — is false. The remedy is to match stakes to assurance (§5.5), not to obfuscate.
 
 ### 7.4 Legitimate use of process signal
 
@@ -525,11 +590,11 @@ Placing generation, not judgement, in the model's hands has three consequences. 
 
 ### 9.3 Implications for practice
 
-For a department adopting this, the realistic sequence is: (1) start with Pattern A on one topic where a simulator obviously helps, because it requires no new infrastructure and no trust in the artefact; (2) build the validation harness before scaling, since it is what makes the second and subsequent activities cheap; (3) treat the activity bundle as version-controlled teaching infrastructure with the same review discipline as any other assessment material; (4) add Pattern B once the validation harness is trusted; (5) revise the course AI-use policy to state what tool assistance is permitted *during* these activities, since A3 is partly legitimate practice and pretending otherwise produces incoherent rules; and (6) establish the anchor points (§7.5) before relying on GAIMS grades summatively.
+For a department adopting this, the realistic sequence is: (1) start with Pattern E on one topic, because it can be deployed this week by one person with no permission from anyone, and a working activity in front of students settles more design arguments than a term of discussion; (2) move the same activity to Pattern A once it matters for marks, since that requires no new infrastructure and no trust in the artefact; (3) build the validation harness before scaling, since it is what makes the second and subsequent activities cheap; (4) treat the activity bundle as version-controlled teaching infrastructure with the same review discipline as any other assessment material; (5) add Pattern B once the validation harness is trusted; (6) revise the course AI-use policy to state what tool assistance is permitted *during* these activities, since A3 is partly legitimate practice and pretending otherwise produces incoherent rules; and (7) establish the anchor points (§7.5) before relying on GAIMS grades summatively.
 
 ### 9.4 Relationship to existing Moodle practice
 
-Nothing in the framework requires plugins beyond `Formulas` and (optionally) STACK, both mature and widely deployed, plus core H5P. This is deliberate: institutional Moodle estates are conservatively managed, and proposals requiring new server components have a poor adoption record. The framework should be readable as "use what your Moodle already does, with content you could not previously afford to make."
+Pattern E requires nothing at all beyond a core Moodle question type. Nothing else in the framework requires plugins beyond `Formulas` and (optionally) STACK, both mature and widely deployed, plus core H5P. This is deliberate: institutional Moodle estates are conservatively managed, and proposals requiring new server components have a poor adoption record. The framework should be readable as "use what your Moodle already does, with content you could not previously afford to make."
 
 ### 9.5 Equity considerations
 
@@ -721,7 +786,7 @@ Wouters, P., van Nimwegen, C., van Oostendorp, H., & van der Spek, E. D. (2013).
 
 ## Appendices
 
-All appendix artefacts are machine-readable and are provided in the `artifacts/` directory of the repository accompanying this paper. They are not illustrative pseudocode: the specification validates against the schema, the question XML parses and imports, and the validator runs and reports the figures quoted in §6.1.
+All appendix artefacts are machine-readable and are provided in the `artifacts/` directory of the repository accompanying this paper. They are not illustrative pseudocode: the specification validates against the schema, the question XML parses and imports, the validator runs and reports the figures quoted in §6.1, and the Pattern E game is exercised in a real browser by the test suite of Appendix E.
 
 ### Appendix A — GAIMS Activity Specification schema v1.0
 
@@ -752,6 +817,19 @@ All appendix artefacts are machine-readable and are provided in the `artifacts/`
 ### Appendix D — Expert review rubric (human gate 2)
 
 `artifacts/appendix-d-review-rubric.md` — 25 criteria across construct validity, parameterisation, pedagogical design, integrity and security, accessibility and equity, data protection, and sustainability, each classified Blocking / Major / Minor, with the decision rule that a cluster of major findings returns the activity to specification rather than to regeneration. The rubric ends with a reviewer declaration that makes the point of the framework explicit: approving a generated activity carries the same academic accountability as setting any other assessment, and that accountability is not transferred to the model.
+
+### Appendix E — Cloze answer-field bridge: template, worked game and browser test
+
+`artifacts/cloze-pattern/` — the complete Pattern E toolkit, and the only part of this paper that a reader can deploy without reading the rest of it.
+
+- `template-hardened.html` — the question-text template. Provides `setScore()` and `logStep()` to the generated game, scopes all DOM queries to the enclosing `.que` so that several such questions can coexist on one page, and fixes eight failure modes enumerated in §5.5 and in the accompanying README.
+- `fractions-game.html` — Vignette 4 complete and ready to paste into a Cloze question: ten fraction-shading questions on pies and bars, keyboard-operable, hatch-patterned rather than colour-only, no timer.
+- `make-cloze-field.js` — generates the partial-credit `NUMERICAL` field for a game of any maximum score, which is the fix for the silent grading error of §5.5.
+- `prompt-template.md` — the authoring prompt, with the constraints that prevent the recurring generation defects (submit-type buttons, mouse-only interaction, colour-only state, auto-advancing timers, non-deterministic question order).
+- `test/harness.js` — builds a page imitating the DOM Moodle renders for a Cloze question, including the read-only variant used in attempt review.
+- `test/play-test.js` — drives the game in Chromium and asserts the pattern's contract, as reported in §6.4. It also contains one passing check labelled a known limitation, demonstrating that a console statement can set the score field without playing.
+
+The toolkit is the paper's response to its own sustainability argument: the claim that a teacher can deploy a generated, automatically graded interactive activity unaided is only worth making if the thing they would deploy is supplied, tested, and honest about what it does not do.
 
 ---
 

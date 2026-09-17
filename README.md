@@ -18,6 +18,7 @@ affordable — and specifying how to close that loop using Moodle's existing nat
 | `artifacts/appendix-c-rankine-formulas.xml` | Appendix C — importable Moodle `Formulas` question (5 parts, per-instance randomisation). |
 | `artifacts/validate_rankine.py` | Stage-4 reference solver and validator. |
 | `artifacts/appendix-d-review-rubric.md` | Appendix D — 25-criterion expert review rubric for human gate 2. |
+| `artifacts/cloze-pattern/` | Appendix E — the Cloze answer-field bridge: hardened template, worked fractions game, Cloze field generator, authoring prompt and browser test suite. See its own README. |
 
 ## The argument in brief
 
@@ -29,6 +30,9 @@ affordable — and specifying how to close that loop using Moodle's existing nat
 3. Moodle already contains the grading machinery: `Formulas`/STACK randomised questions, the question
    engine's multi-try behaviours, H5P with xAPI, LTI 1.3 AGS, gradebook calculations, restrict-access
    chains and the Workshop module. No bespoke server-side grading is required.
+   The lightest route — **Pattern E, the Cloze answer-field bridge** — needs none of those: the game
+   runs in the text of a core Embedded answers (Cloze) question and writes its score into hidden
+   answer fields that Moodle grades as ordinary responses. One teacher, no plugins, no permission.
 4. The integrity claim is bounded and stated as propositions P1–P6 and conclusion C1: per-student
    parameterisation defeats sharing but not solving; interaction cost and process evidence raise the cost
    of outsourcing; immediate feedback lowers the cost of honesty. A determined adversary with a
@@ -38,6 +42,8 @@ affordable — and specifying how to close that loop using Moodle's existing nat
 ## Reproducing the reported results
 
 ```bash
+npm install playwright-core
+node artifacts/cloze-pattern/test/play-test.js   # plays the fractions game in Chromium
 python3 artifacts/validate_rankine.py     # exits 0; prints the statistics quoted in §6.1
 python3 -c "import xml.dom.minidom as d; d.parse('artifacts/appendix-c-rankine-formulas.xml')"
 pip install jsonschema && python3 -c "
@@ -50,6 +56,15 @@ print('spec validates')"
 The validator is deterministic under its fixed seed. It reports effective cardinality of 134,850,
 energy-balance closure to 1.8e-16, the ideal-component limiting case at eta_th = 0.3915, and joint
 answer separation of 99.94%.
+
+## Two corrections the artefacts record
+
+**Appendix E (Cloze pattern).** A score field declared `{1:NUMERICAL:=7:2}` grades right/wrong against
+a tolerance — it awards full marks for any score from 5 to 9 and zero for a perfect 10. Proportional
+autograding needs one accepted answer per attainable score. And hiding an answer field with
+`display:none` prevents accidental editing, not deliberate editing: the browser test includes a
+passing check that a single console statement sets the score to full marks without playing. Both are
+documented in `artifacts/cloze-pattern/README.md` rather than papered over.
 
 ## A note on the Appendix C question
 

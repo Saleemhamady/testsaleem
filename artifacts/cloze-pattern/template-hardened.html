@@ -1,0 +1,103 @@
+<!--
+  Hardened drop-in replacement for the game/simulator template.
+  Differences from the original are marked [FIX n] and explained in README.md.
+
+  Paste everything below this comment into the question text of a Moodle
+  Cloze ("Embedded answers / multianswer") question, with the text format
+  set to HTML. Replace the marked section with the generated game.
+-->
+
+<p>[game instructions for the student]</p>
+
+<div id="game-container">
+  <div id="score-display" style="font-family:sans-serif; font-weight:bold; margin-bottom:8px;">Score: 0</div>
+</div>
+
+<!-- [FIX 1] Partial-credit score field.
+     The original {1:NUMERICAL:=7:2} awards FULL marks for anything from 5 to 9
+     and ZERO for everything else, because a NUMERICAL Cloze answer is graded
+     right/wrong against a tolerance. It does not scale the mark with the score.
+     The list below maps every attainable score to its own percentage, so a
+     7/10 game scores 70%. Regenerate it for a different maximum with:
+         node make-cloze-field.js 10                                          -->
+<span id="hidden-score" style="display:none">{1:NUMERICAL:=10:0~%90%9:0~%80%8:0~%70%7:0~%60%6:0~%50%5:0~%40%4:0~%30%3:0~%20%2:0~%10%1:0~%0%0:0}</span>
+
+<!-- [FIX 6] OPTIONAL process-evidence field. Records what the learner did, not
+     just what they scored, so an instructor can see a trajectory in the
+     response report. The * wildcard accepts any value, so every learner earns
+     this subquestion: it records, it does not grade. Because it still carries
+     weight 1, set the question's maximum grade so the score field keeps the
+     share of the mark you intend (with the field above, 1 of 2 subquestions).
+     Delete this line if you only want the score.                             -->
+<span id="hidden-trace" style="display:none">{1:SHORTANSWER:=*}</span>
+
+<script>
+(function () {
+  // [FIX 2] document.currentScript is null if this script is ever re-inserted
+  // rather than parsed with the page; .closest() on null throws and the game
+  // silently disappears. Fall back to the last script element, then document.
+  var thisScript = document.currentScript ||
+                   (function () {
+                     var s = document.getElementsByTagName('script');
+                     return s[s.length - 1];
+                   })();
+  var root = (thisScript && thisScript.closest && thisScript.closest('.que')) || document;
+
+  var scoreBox = root.querySelector('#hidden-score input');
+  var traceBox = root.querySelector('#hidden-trace input');   // may be absent
+  var scoreDisplay = root.querySelector('#score-display');
+  var score = 0;
+
+  // [FIX 3] Set this to the game's maximum so the score cannot be pushed past
+  // it by a bug, and so the display can show "x / max".
+  var MAX_SCORE = 10;
+
+  function setScore(value) {
+    // [FIX 4] Clamp and reject non-numbers. A NaN written into the answer
+    // field is submitted as an empty response and silently scores zero.
+    var v = Number(value);
+    if (!isFinite(v)) return;
+    score = Math.max(0, Math.min(MAX_SCORE, v));
+    scoreDisplay.textContent = 'Score: ' + score;
+    if (scoreBox) {
+      scoreBox.value = score;
+      ['input', 'change'].forEach(function (evt) {
+        scoreBox.dispatchEvent(new Event(evt, { bubbles: true }));
+      });
+    }
+  }
+
+  // [FIX 6] Call this to record a step in the learner's trajectory.
+  // Keep it short: Moodle stores the response as a single text value.
+  var trace = [];
+  function logStep(entry) {
+    trace.push(entry);
+    if (traceBox) {
+      traceBox.value = trace.join('|').slice(0, 250);
+      ['input', 'change'].forEach(function (evt) {
+        traceBox.dispatchEvent(new Event(evt, { bubbles: true }));
+      });
+    }
+  }
+
+  // [FIX 5] If the answer field is missing entirely — which is how Moodle
+  // renders some review states — the original test left isReadOnly false, so
+  // the game stayed live and every point the learner earned went nowhere.
+  // No field means no way to record: treat that as read-only.
+  var isReadOnly = !scoreBox || scoreBox.readOnly || scoreBox.disabled;
+
+  if (scoreBox && scoreBox.value !== '' && isFinite(Number(scoreBox.value))) {
+    setScore(Number(scoreBox.value));
+  }
+  if (traceBox && traceBox.value) {
+    trace = traceBox.value.split('|');
+  }
+
+  // ======= YOUR GAME CODE GOES HERE =======
+
+
+
+  // ======= END OF YOUR GAME CODE =======
+
+})();
+</script>
