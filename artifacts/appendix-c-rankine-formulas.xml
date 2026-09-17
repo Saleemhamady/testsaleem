@@ -1,0 +1,264 @@
+<!--
+  Appendix C. "Plant Operator" — Rankine cycle, Moodle Formulas question type.
+  Companion artefact to: "Playable Assessment: Generative-AI-Authored Games and Micro-Simulators
+  as Automatically Graded, Integrity-Resilient Activities in Moodle" (Vignette 1, Pattern A).
+
+  5 points, 5 parts (1 point each):
+    Part 1  thermal efficiency            (dimensionless)
+    Part 2  net specific work             (kJ/kg, unit-graded)
+    Part 3  turbine-exit steam quality    (dimensionless)
+    Part 4  required steam mass flow rate (kg/s, unit-graded)
+    Part 5  actual feed-pump specific work (kJ/kg, unit-graded)
+
+  Part 5 exists because of a stage-4 validation failure, not because it was in the original
+  blueprint. With only parts 1-4, the randomised pump isentropic efficiency eta_p moved no
+  graded answer by more than the 1% grading tolerance (pump work is ~1% of net work), i.e. it
+  was a degenerate randomised variable: it varied the question without varying the assessment.
+  The validator (artifacts/validate_rankine.py, check 7) rejected the question on that ground
+  and the activity was regenerated with a part that is sensitive to eta_p. See Section 6.1.
+
+  Per-student randomisation (varsrandom):
+    eta_t  turbine isentropic efficiency  0.780 : 0.920 step 0.005   (~28 values)
+    eta_p  pump isentropic efficiency     0.700 : 0.850 step 0.005   (~30 values)
+    Wnet   required net power output [MW] 40 : 185 step 5            (~29 values)
+    xmin   minimum permissible exit quality {0.86,0.87,0.88,0.89,0.90} (5 values)
+  Effective cardinality ~1.2e5, satisfying the >=1e4 formative / near 1e5 recommendation of
+  Section 4.3. For summative use, halve the steps to exceed 1e6.
+
+  Fixed reference states supplied as globals (boiler 8 MPa / 480 C; condenser 10 kPa):
+    h3 = 3347.5 kJ/kg, s3 = 6.6544 kJ/kg.K  (interpolated, 8 MPa superheated table)
+    hf = 191.81 kJ/kg, hfg = 2392.1 kJ/kg, sf = 0.6492, sfg = 7.4996  (saturated, 10 kPa)
+    v1 = 0.001010 m3/kg
+  These values are the ones the pipeline's stage-4 validator cross-checks against an
+  independent reference solver; see Section 4.4.
+
+  Intended behaviour: "Interactive with multiple tries"; penalty 1/3 per try; hints supplied.
+-->
+<quiz>
+
+<question type="formulas">
+
+<name>
+<text>GAIMS V1 - Plant Operator: Rankine cycle design point</text>
+</name>
+
+<questiontext format="html">
+<text>
+<![CDATA[ <p><strong>(5 points) </strong>You are commissioning the steam cycle of a condensing power plant. The <em>Plant Operator</em> simulator for your assigned unit is linked above; open it and enter your instance code before answering.</p>
+<p>Your unit operates on an ideal-component Rankine cycle with real turbomachinery:</p>
+<ul>
+<li>Boiler exit (turbine inlet): <strong>8 MPa, 480 &deg;C</strong></li>
+<li>Condenser pressure: <strong>10 kPa</strong>, with saturated liquid leaving the condenser</li>
+<li>Turbine isentropic efficiency: <strong>&eta;<sub>t</sub> = {eta_t}</strong></li>
+<li>Pump isentropic efficiency: <strong>&eta;<sub>p</sub> = {eta_p}</strong></li>
+<li>Required net power output: <strong>{Wnet} MW</strong></li>
+<li>Turbine-exit moisture limit: steam quality must not fall below <strong>x<sub>min</sub> = {xmin}</strong></li>
+</ul>
+<p>Work with the state values shown in the simulator's state-point table. Give all answers to at least three significant figures.</p>
+<p>{#1}</p>
+<p>{#2}</p>
+<p>{#3}</p>
+<p>{#4}</p>
+<p>{#5}</p> ]]>
+</text>
+</questiontext>
+
+<generalfeedback format="html">
+<text>
+<![CDATA[ <p><strong>Method.</strong> Pump: \( w_p = v_1 (P_2 - P_1)/\eta_p \), so \( h_2 = h_1 + w_p \). Turbine: \( x_{4s} = (s_3 - s_f)/s_{fg} \), \( h_{4s} = h_f + x_{4s} h_{fg} \), \( w_t = \eta_t (h_3 - h_{4s}) \), so \( h_4 = h_3 - w_t \). Then \( q_{in} = h_3 - h_2 \), \( w_{net} = w_t - w_p \), \( \eta_{th} = w_{net}/q_{in} \), \( x_4 = (h_4 - h_f)/h_{fg} \) and \( \dot m = \dot W_{net}/w_{net} \).</p>
+<p><strong>Why the moisture limit matters.</strong> A higher turbine isentropic efficiency raises \( w_t \) and therefore lowers \( h_4 \) and \( x_4 \). The design point that maximises efficiency is not necessarily admissible: check \( x_4 \) against your unit's \( x_{min} = {xmin} \) before recommending it. Your unit's computed exit quality is {x4}, and the limit is {xmin}.</p>
+<p><strong>Pump work.</strong> Note that \( w_p \) is small but not zero here; discarding it changes \( \eta_{th} \) in the third significant figure, which is inside the grading tolerance for this question but not inside the tolerance of a real acceptance test.</p> ]]>
+</text>
+</generalfeedback>
+
+<defaultgrade>5</defaultgrade>
+<penalty>0.3333333</penalty>
+<hidden>0</hidden>
+<idnumber/>
+
+<correctfeedback format="html">
+<text><![CDATA[ <p>All four quantities are correct for your unit.</p> ]]></text>
+</correctfeedback>
+<partiallycorrectfeedback format="html">
+<text><![CDATA[ <p>Some quantities are correct for your unit. Check the parts marked incorrect against your state-point table.</p> ]]></text>
+</partiallycorrectfeedback>
+<incorrectfeedback format="html">
+<text><![CDATA[ <p>None of the quantities match your unit's operating point. Re-read the state-point table in the simulator before trying again.</p> ]]></text>
+</incorrectfeedback>
+<shownumcorrect/>
+
+<varsrandom>
+<text>eta_t= {0.780:0.920:0.005}; eta_p= {0.700:0.850:0.005}; Wnet= {40:185:5}; xmin= {0.86,0.87,0.88,0.89,0.90};</text>
+</varsrandom>
+
+<varsglobal>
+<text>relative_error=0.01; absolute_error=0.001; h1=191.81; v1=0.001010; hf=191.81; hfg=2392.1; sf=0.6492; sfg=7.4996; P_boiler=8000; P_cond=10; h3=3347.5; s3=6.6544; x4s=(s3-sf)/sfg; h4s=hf+x4s*hfg; wt_ideal=h3-h4s; wt=eta_t*wt_ideal; wp_ideal=v1*(P_boiler-P_cond); wp=wp_ideal/eta_p; h2=h1+wp; h4=h3-wt; qin=h3-h2; wnet=wt-wp; eta_th=wnet/qin; x4=(h4-hf)/hfg; mdot=Wnet*1000/wnet;</text>
+</varsglobal>
+
+<shownumcorrect>
+<text>1</text>
+</shownumcorrect>
+
+<answernumbering>
+<text>abc</text>
+</answernumbering>
+
+<!-- ===== Part 1: cycle thermal efficiency ===== -->
+<answers>
+<partindex><text>0</text></partindex>
+<placeholder><text>#1</text></placeholder>
+<answermark><text>1</text></answermark>
+<answertype><text>100</text></answertype>
+<numbox><text>1</text></numbox>
+<vars1><text/></vars1>
+<answer><text>eta_th</text></answer>
+<answernotunique><text>0</text></answernotunique>
+<vars2><text/></vars2>
+<correctness>
+<text><![CDATA[ _relerr < 0.01 ]]></text>
+</correctness>
+<unitpenalty><text>1</text></unitpenalty>
+<postunit><text/></postunit>
+<ruleid><text>1</text></ruleid>
+<otherrule><text/></otherrule>
+<subqtext format="html">
+<text><![CDATA[ <p>(1 point) Cycle thermal efficiency, as a decimal fraction (not a percentage), including pump work.</p> <p>\( \eta_{th} \) = {_0}</p> ]]></text>
+</subqtext>
+<feedback format="html">
+<text><![CDATA[ <p>Use \( \eta_{th} = w_{net}/q_{in} \) with \( q_{in} = h_3 - h_2 \). A common error is to use \( h_3 - h_1 \), which ignores the pump's enthalpy rise.</p> ]]></text>
+</feedback>
+<correctfeedback format="html"><text/></correctfeedback>
+<partiallycorrectfeedback format="html"><text/></partiallycorrectfeedback>
+<incorrectfeedback format="html"><text/></incorrectfeedback>
+</answers>
+
+<!-- ===== Part 2: net specific work (unit-graded) ===== -->
+<answers>
+<partindex><text>1</text></partindex>
+<placeholder><text>#2</text></placeholder>
+<answermark><text>1</text></answermark>
+<answertype><text>100</text></answertype>
+<numbox><text>1</text></numbox>
+<vars1><text/></vars1>
+<answer><text>wnet</text></answer>
+<answernotunique><text>0</text></answernotunique>
+<vars2><text/></vars2>
+<correctness>
+<text><![CDATA[ _relerr < 0.01 ]]></text>
+</correctness>
+<unitpenalty><text>1</text></unitpenalty>
+<postunit><text>kJ/kg</text></postunit>
+<ruleid><text>1</text></ruleid>
+<otherrule><text/></otherrule>
+<subqtext format="html">
+<text><![CDATA[ <p>(1 point) Net specific work delivered by the cycle. Include the unit.</p> <p>\( w_{net} \) = {_0}</p> ]]></text>
+</subqtext>
+<feedback format="html">
+<text><![CDATA[ <p>\( w_{net} = w_t - w_p \). The pump term is small, but it is not zero: at your pump efficiency it is roughly {wp} kJ/kg.</p> ]]></text>
+</feedback>
+<correctfeedback format="html"><text/></correctfeedback>
+<partiallycorrectfeedback format="html"><text/></partiallycorrectfeedback>
+<incorrectfeedback format="html"><text/></incorrectfeedback>
+</answers>
+
+<!-- ===== Part 3: turbine-exit quality ===== -->
+<answers>
+<partindex><text>2</text></partindex>
+<placeholder><text>#3</text></placeholder>
+<answermark><text>1</text></answermark>
+<answertype><text>100</text></answertype>
+<numbox><text>1</text></numbox>
+<vars1><text/></vars1>
+<answer><text>x4</text></answer>
+<answernotunique><text>0</text></answernotunique>
+<vars2><text/></vars2>
+<correctness>
+<text><![CDATA[ _relerr < 0.01 ]]></text>
+</correctness>
+<unitpenalty><text>1</text></unitpenalty>
+<postunit><text/></postunit>
+<ruleid><text>1</text></ruleid>
+<otherrule><text/></otherrule>
+<subqtext format="html">
+<text><![CDATA[ <p>(1 point) Steam quality at the <em>actual</em> turbine exit, as a decimal fraction. Then compare it with your unit's limit \( x_{min} = {xmin} \) &mdash; you will be asked to justify the comparison in the linked Workshop activity.</p> <p>\( x_4 \) = {_0}</p> ]]></text>
+</subqtext>
+<feedback format="html">
+<text><![CDATA[ <p>Use the <em>actual</em> exit enthalpy \( h_4 = h_3 - w_t \), not the isentropic \( h_{4s} \). Irreversibility in the turbine raises \( h_4 \) and therefore raises the exit quality relative to the isentropic case.</p> ]]></text>
+</feedback>
+<correctfeedback format="html"><text/></correctfeedback>
+<partiallycorrectfeedback format="html"><text/></partiallycorrectfeedback>
+<incorrectfeedback format="html"><text/></incorrectfeedback>
+</answers>
+
+<!-- ===== Part 4: required mass flow rate (unit-graded) ===== -->
+<answers>
+<partindex><text>3</text></partindex>
+<placeholder><text>#4</text></placeholder>
+<answermark><text>1</text></answermark>
+<answertype><text>100</text></answertype>
+<numbox><text>1</text></numbox>
+<vars1><text/></vars1>
+<answer><text>mdot</text></answer>
+<answernotunique><text>0</text></answernotunique>
+<vars2><text/></vars2>
+<correctness>
+<text><![CDATA[ _relerr < 0.01 ]]></text>
+</correctness>
+<unitpenalty><text>1</text></unitpenalty>
+<postunit><text>kg/s</text></postunit>
+<ruleid><text>1</text></ruleid>
+<otherrule><text/></otherrule>
+<subqtext format="html">
+<text><![CDATA[ <p>(1 point) Steam mass flow rate required to deliver the specified net output of {Wnet} MW. Include the unit.</p> <p>\( \dot m \) = {_0}</p> ]]></text>
+</subqtext>
+<feedback format="html">
+<text><![CDATA[ <p>\( \dot m = \dot W_{net} / w_{net} \). Watch the unit conversion: the required output is given in MW and the specific work in kJ/kg.</p> ]]></text>
+</feedback>
+<correctfeedback format="html"><text/></correctfeedback>
+<partiallycorrectfeedback format="html"><text/></partiallycorrectfeedback>
+<incorrectfeedback format="html"><text/></incorrectfeedback>
+</answers>
+
+<!-- ===== Part 5: actual feed-pump specific work (unit-graded) =====
+     Added after the stage-4 reachability check rejected the 4-part version:
+     this is the only part sensitive to the randomised pump isentropic efficiency. -->
+<answers>
+<partindex><text>4</text></partindex>
+<placeholder><text>#5</text></placeholder>
+<answermark><text>1</text></answermark>
+<answertype><text>100</text></answertype>
+<numbox><text>1</text></numbox>
+<vars1><text/></vars1>
+<answer><text>wp</text></answer>
+<answernotunique><text>0</text></answernotunique>
+<vars2><text/></vars2>
+<correctness>
+<text><![CDATA[ _relerr < 0.01 ]]></text>
+</correctness>
+<unitpenalty><text>1</text></unitpenalty>
+<postunit><text>kJ/kg</text></postunit>
+<ruleid><text>1</text></ruleid>
+<otherrule><text/></otherrule>
+<subqtext format="html">
+<text><![CDATA[ <p>(1 point) Actual specific work consumed by the feed pump, at your unit's pump isentropic efficiency &eta;<sub>p</sub> = {eta_p}. Include the unit. Then state, in the Workshop activity, what percentage of gross turbine work this represents.</p> <p>\( w_p \) = {_0}</p> ]]></text>
+</subqtext>
+<feedback format="html">
+<text><![CDATA[ <p>Treat the liquid as incompressible: \( w_{p,s} = v_1 (P_2 - P_1) \), and divide by \( \eta_p \) for the actual work. Note that \( 1\ \mathrm{kPa \cdot m^3/kg} = 1\ \mathrm{kJ/kg} \), so no further conversion is needed. The magnitude is small &mdash; but your unit's \( \eta_p \) changes it by around 20% across the class, which is why it is graded separately.</p> ]]></text>
+</feedback>
+<correctfeedback format="html"><text/></correctfeedback>
+<partiallycorrectfeedback format="html"><text/></partiallycorrectfeedback>
+<incorrectfeedback format="html"><text/></incorrectfeedback>
+</answers>
+
+<hint format="html">
+<text><![CDATA[ <p>Start from the four state points. State 1 is saturated liquid at the condenser pressure; state 3 is the turbine inlet. You need \( h_2 \) and \( h_4 \) before any of the four answers.</p> ]]></text>
+</hint>
+<hint format="html">
+<text><![CDATA[ <p>For the turbine, find the isentropic exit state first: \( s_{4s} = s_3 \), so \( x_{4s} = (s_3 - s_f)/s_{fg} \). Apply \( \eta_t \) to the isentropic enthalpy drop, not to the enthalpy itself.</p> ]]></text>
+</hint>
+<hint format="html">
+<text><![CDATA[ <p>If your efficiency is high but your exit quality is below {xmin}, the design point is inadmissible for your unit &mdash; that is the constraint the simulator's shaded region is showing you.</p> ]]></text>
+</hint>
+
+</question>
+</quiz>

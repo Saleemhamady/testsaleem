@@ -1,0 +1,252 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.org/gaims/activity-spec-1.0.json",
+  "title": "GAIMS Activity Specification v1.0",
+  "description": "Machine-readable specification for a Generative-AI-authored Interactive Micro-Simulation. Stage 2 of the authoring pipeline produces a document conforming to this schema; stage 3 generates the artefact from it; stage 4 validates the artefact against it. The specification, not the chat transcript, is the authoritative record of what was asked for.",
+  "type": "object",
+  "required": ["spec_version", "identity", "outcomes", "artefact", "parameterisation", "observables", "grading", "feedback", "load_budget", "accessibility", "provenance"],
+  "additionalProperties": false,
+  "properties": {
+    "spec_version": { "const": "1.0" },
+
+    "identity": {
+      "type": "object",
+      "required": ["activity_id", "title", "domain", "level", "time_budget_minutes"],
+      "properties": {
+        "activity_id": { "type": "string", "pattern": "^[a-z0-9-]{3,64}$" },
+        "title": { "type": "string" },
+        "domain": { "type": "string" },
+        "level": { "type": "string", "enum": ["introductory", "intermediate", "advanced"] },
+        "time_budget_minutes": { "type": "integer", "minimum": 5, "maximum": 45,
+          "description": "Micro-simulation scale. Values above 30 should be justified; above 45 the activity should be decomposed." }
+      }
+    },
+
+    "outcomes": {
+      "type": "array", "minItems": 1, "maxItems": 3,
+      "description": "At most three outcomes. More than three indicates the activity should be split.",
+      "items": {
+        "type": "object",
+        "required": ["id", "statement", "assessed_by"],
+        "properties": {
+          "id": { "type": "string" },
+          "statement": { "type": "string" },
+          "bloom_level": { "type": "string", "enum": ["remember", "understand", "apply", "analyse", "evaluate", "create"] },
+          "assessed_by": { "type": "array", "items": { "type": "string" },
+            "description": "Observable ids and/or grading component ids that provide evidence for this outcome. Every outcome must be reachable from at least one observable (ECD completeness check)." }
+        }
+      }
+    },
+
+    "misconceptions": {
+      "type": "array",
+      "description": "Targeted misconceptions. Each must be addressed by at least one distractor, induced fault or feedback string; the validator enforces this.",
+      "items": {
+        "type": "object",
+        "required": ["id", "description", "addressed_by"],
+        "properties": {
+          "id": { "type": "string" },
+          "description": { "type": "string" },
+          "addressed_by": { "type": "array", "items": { "type": "string" } }
+        }
+      }
+    },
+
+    "artefact": {
+      "type": "object",
+      "required": ["delivery", "interaction_model", "external_dependencies"],
+      "properties": {
+        "delivery": { "type": "string", "enum": ["h5p", "file_resource", "page", "lti_1_3"] },
+        "interaction_model": { "type": "string", "enum": ["parameter_sweep", "fault_diagnosis", "sequential_decision", "construction", "scheduling", "negotiation"] },
+        "controls": { "type": "array", "items": { "type": "object",
+          "required": ["id", "kind", "label"],
+          "properties": {
+            "id": { "type": "string" },
+            "kind": { "type": "string", "enum": ["slider", "numeric", "select", "toggle", "probe", "action"] },
+            "label": { "type": "string" },
+            "range": { "type": "array", "items": { "type": "number" }, "minItems": 2, "maxItems": 2 },
+            "unit": { "type": "string" }
+          } } },
+        "displays": { "type": "array", "items": { "type": "string" },
+          "description": "What state the learner can see. Anything not listed here is hidden state." },
+        "scaffold_ladder": {
+          "type": "array", "minItems": 3,
+          "description": "Minimum three levels of staged support. Unguided sandboxes are rejected at review (de Jong & van Joolingen, 1998; Kirschner et al., 2006).",
+          "items": { "type": "object", "required": ["level", "support"],
+            "properties": {
+              "level": { "type": "integer", "minimum": 1 },
+              "support": { "type": "string" },
+              "trigger": { "type": "string", "description": "Condition under which this support is offered (e.g. 'no feasible point after 8 evaluations')." }
+            } }
+        },
+        "external_dependencies": {
+          "type": "array", "items": { "type": "string" },
+          "maxItems": 0,
+          "description": "Must be empty. CDN, network or third-party runtime dependencies break offline review, archiving and institutional data control, and are a review-blocking defect."
+        }
+      }
+    },
+
+    "parameterisation": {
+      "type": "object",
+      "required": ["seed_policy", "variables", "constraints", "cardinality_target", "separation_tolerance"],
+      "properties": {
+        "seed_policy": {
+          "type": "object",
+          "required": ["derivation", "keyed"],
+          "properties": {
+            "derivation": { "const": "H(activity_id || user_id || attempt_no || course_secret)" },
+            "keyed": { "const": true, "description": "An unkeyed seed is predictable by students and is a review-blocking defect." }
+          }
+        },
+        "variables": {
+          "type": "array", "minItems": 2,
+          "items": { "type": "object",
+            "required": ["name", "kind"],
+            "properties": {
+              "name": { "type": "string" },
+              "kind": { "type": "string", "enum": ["continuous", "discrete", "categorical", "structural"] },
+              "range": { "type": "array", "items": { "type": "number" }, "minItems": 2, "maxItems": 2 },
+              "step": { "type": "number" },
+              "values": { "type": "array" },
+              "unit": { "type": "string" },
+              "reaches_answer": { "type": "boolean",
+                "description": "Asserted by the author, verified by the validator. A variable that does not propagate to any graded answer is a degenerate-parameterisation defect." }
+            } }
+        },
+        "constraints": {
+          "type": "array", "minItems": 1,
+          "description": "Validity constraints preserving semantic invariance (Section 4.3). Draws violating any constraint are rejected and redrawn.",
+          "items": { "type": "object", "required": ["expression", "rationale"],
+            "properties": {
+              "expression": { "type": "string" },
+              "rationale": { "type": "string" }
+            } }
+        },
+        "cardinality_target": { "type": "integer", "minimum": 10000,
+          "description": "Effective cardinality AFTER constraint filtering. >=1e4 formative, >=1e6 summative." },
+        "separation_tolerance": { "type": "number", "exclusiveMinimum": 0,
+          "description": "Relative grading tolerance. The validator checks that a sampled pair of instances differs by more than this on at least one graded answer, and reports the joint separation rate." }
+      }
+    },
+
+    "observables": {
+      "type": "array", "minItems": 1, "maxItems": 7,
+      "description": "Reduced-fidelity stealth-assessment indicators (Section 3.2). Keep the set small: each observable is personal data with a retention obligation (Section 11).",
+      "items": {
+        "type": "object",
+        "required": ["id", "description", "type", "graded", "retention_days"],
+        "properties": {
+          "id": { "type": "string" },
+          "description": { "type": "string" },
+          "type": { "type": "string", "enum": ["count", "boolean", "duration", "sequence", "value", "category"] },
+          "graded": { "type": "boolean" },
+          "maps_to_outcome": { "type": "array", "items": { "type": "string" } },
+          "retention_days": { "type": "integer", "minimum": 1, "maximum": 730 }
+        }
+      }
+    },
+
+    "grading": {
+      "type": "object",
+      "required": ["patterns", "components", "gradebook"],
+      "properties": {
+        "patterns": { "type": "array", "minItems": 1,
+          "items": { "type": "string", "enum": ["A_question_engine", "B_h5p_xapi", "C_lti_ags", "D_workshop"] } },
+        "components": {
+          "type": "array", "minItems": 1,
+          "items": { "type": "object",
+            "required": ["id", "pattern", "moodle_target", "weight", "summative"],
+            "properties": {
+              "id": { "type": "string" },
+              "pattern": { "type": "string", "enum": ["A_question_engine", "B_h5p_xapi", "C_lti_ags", "D_workshop"] },
+              "moodle_target": { "type": "string",
+                "description": "The native Moodle object performing the grading, e.g. 'qtype_formulas question', 'H5P grade item', 'Workshop rubric'. Criterion 5 of Section 4.1: this may not be a bespoke grading service." },
+              "question_behaviour": { "type": "string", "enum": ["interactive", "adaptive", "adaptivenopenalty", "deferredfeedback", "immediatefeedback"] },
+              "penalty_per_try": { "type": "number", "minimum": 0, "maximum": 1 },
+              "weight": { "type": "number", "minimum": 0, "maximum": 1 },
+              "summative": { "type": "boolean" },
+              "client_scored": { "type": "boolean",
+                "description": "True for Pattern B. A summative component with client_scored=true is a review-blocking defect (Section 5.2)." }
+            } }
+        },
+        "gradebook": {
+          "type": "object",
+          "properties": {
+            "category": { "type": "string" },
+            "aggregation": { "type": "string" },
+            "completion_conditions": { "type": "array", "items": { "type": "string" } },
+            "restrict_access": { "type": "array", "items": { "type": "string" } }
+          }
+        }
+      }
+    },
+
+    "feedback": {
+      "type": "object",
+      "required": ["immediate", "per_try", "post_hoc"],
+      "description": "Every anticipated misconception and every distractor requires an authored feedback string (Section 4.2, L5). Feedback must be task-focused rather than self-focused (Hattie & Timperley, 2007; Shute, 2008).",
+      "properties": {
+        "immediate": { "type": "array", "items": { "type": "object",
+          "required": ["trigger", "message"],
+          "properties": { "trigger": { "type": "string" }, "message": { "type": "string" }, "addresses": { "type": "string" } } } },
+        "per_try": { "type": "array", "items": { "type": "string" } },
+        "post_hoc": { "type": "string" }
+      }
+    },
+
+    "load_budget": {
+      "type": "object",
+      "required": ["max_simultaneous_controls", "max_displayed_quantities", "narrative_words_max"],
+      "description": "Extraneous-load ceiling (Sweller, 1988; Mayer, 2009). A reviewer may reject an artefact on load grounds alone.",
+      "properties": {
+        "max_simultaneous_controls": { "type": "integer", "minimum": 1, "maximum": 7 },
+        "max_displayed_quantities": { "type": "integer", "minimum": 1, "maximum": 12 },
+        "narrative_words_max": { "type": "integer", "maximum": 250 },
+        "animation": { "type": "string", "enum": ["none", "functional_only"] }
+      }
+    },
+
+    "accessibility": {
+      "type": "object",
+      "required": ["wcag_target", "keyboard_operable", "non_colour_encoding", "equivalent_task_pathway"],
+      "properties": {
+        "wcag_target": { "const": "2.2-AA" },
+        "keyboard_operable": { "const": true },
+        "non_colour_encoding": { "const": true, "description": "No information conveyed by colour alone." },
+        "reduced_motion_respected": { "type": "boolean" },
+        "equivalent_task_pathway": { "type": "string",
+          "description": "Required. The non-interactive equivalent assessment offered to students with approved accommodations (Section 9.5)." }
+      }
+    },
+
+    "validation": {
+      "type": "object",
+      "description": "Stage-4 gate configuration. Independent redundant derivation is mandatory (Section 4.4).",
+      "properties": {
+        "reference_solver": { "type": "string", "description": "Path to a solver generated INDEPENDENTLY of the artefact, ideally in a different representation." },
+        "monte_carlo_samples": { "type": "integer", "minimum": 1000 },
+        "agreement_tolerance": { "type": "number" },
+        "dimensional_analysis": { "type": "boolean" },
+        "limiting_cases": { "type": "array", "items": { "type": "object",
+          "properties": { "case": { "type": "string" }, "expected": { "type": "string" } } } },
+        "physical_bounds": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+
+    "provenance": {
+      "type": "object",
+      "required": ["generated_by", "generated_at", "reviewed_by", "review_outcome"],
+      "description": "Archiving requirement (Section 4.5): appeals, moderation and research reproducibility all depend on this record.",
+      "properties": {
+        "generated_by": { "type": "string", "description": "Model identifier and version used for generation." },
+        "generation_parameters": { "type": "object" },
+        "generated_at": { "type": "string", "format": "date-time" },
+        "spec_hash": { "type": "string" },
+        "reviewed_by": { "type": "string" },
+        "review_outcome": { "type": "string", "enum": ["approved", "approved_with_changes", "rejected", "pending"] },
+        "review_record": { "type": "string" }
+      }
+    }
+  }
+}

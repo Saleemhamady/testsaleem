@@ -1,0 +1,152 @@
+{
+  "spec_version": "1.0",
+  "identity": {
+    "activity_id": "plant-operator-rankine",
+    "title": "Plant Operator: commissioning a condensing steam cycle",
+    "domain": "Thermodynamics / energy systems engineering",
+    "level": "intermediate",
+    "time_budget_minutes": 25
+  },
+  "outcomes": [
+    { "id": "LO1",
+      "statement": "Compute cycle thermal efficiency, net specific work, turbine-exit quality and required mass flow for a Rankine cycle with non-ideal turbomachinery.",
+      "bloom_level": "apply",
+      "assessed_by": ["G_quiz_eta", "G_quiz_wnet", "G_quiz_x4", "G_quiz_mdot"] },
+    { "id": "LO2",
+      "statement": "Predict and explain the effect of boiler pressure, superheat temperature and condenser pressure on efficiency and on turbine-exit quality.",
+      "bloom_level": "analyse",
+      "assessed_by": ["O1", "O3", "G_workshop_justification"] },
+    { "id": "LO3",
+      "statement": "Identify operating points that violate the turbine-exit moisture limit and select an admissible design point.",
+      "bloom_level": "evaluate",
+      "assessed_by": ["O2", "O5", "G_workshop_justification"] }
+  ],
+  "misconceptions": [
+    { "id": "M1", "description": "Believing that raising condenser pressure improves output.", "addressed_by": ["FB_immediate_condenser", "O1"] },
+    { "id": "M2", "description": "Believing higher boiler pressure always improves efficiency, ignoring the moisture constraint.", "addressed_by": ["FB_immediate_moisture", "O2", "G_workshop_justification"] },
+    { "id": "M3", "description": "Conflating cycle thermal efficiency with turbine isentropic efficiency.", "addressed_by": ["FB_part1", "G_quiz_eta"] },
+    { "id": "M4", "description": "Neglecting pump work as automatically negligible without checking its magnitude.", "addressed_by": ["FB_part2", "G_quiz_wnet"] },
+    { "id": "M5", "description": "Applying the isentropic efficiency to the enthalpy rather than to the isentropic enthalpy drop.", "addressed_by": ["FB_part3", "HINT2"] }
+  ],
+  "artefact": {
+    "delivery": "h5p",
+    "interaction_model": "parameter_sweep",
+    "controls": [
+      { "id": "c_pboiler", "kind": "slider", "label": "Boiler pressure", "range": [4000, 16000], "unit": "kPa" },
+      { "id": "c_tsuper", "kind": "slider", "label": "Superheat temperature", "range": [400, 560], "unit": "degC" },
+      { "id": "c_pcond", "kind": "slider", "label": "Condenser pressure", "range": [6, 30], "unit": "kPa" },
+      { "id": "c_etat", "kind": "numeric", "label": "Turbine isentropic efficiency", "range": [0.78, 0.92] },
+      { "id": "c_submit", "kind": "action", "label": "Record design point" }
+    ],
+    "displays": [
+      "Live T-s diagram with the four state points",
+      "State-point table (p, T, h, s, x)",
+      "Cycle thermal efficiency",
+      "Net specific work",
+      "Turbine-exit quality with shaded inadmissible region below x_min",
+      "Required mass flow for the target net power"
+    ],
+    "scaffold_ladder": [
+      { "level": 1, "support": "The T-s diagram is annotated with state-point labels and the moisture limit is shaded from the first interaction.", "trigger": "always" },
+      { "level": 2, "support": "After four evaluations with no change to condenser pressure, a prompt invites the learner to sweep it and observe the effect on both efficiency and exit quality.", "trigger": "no condenser-pressure variation after 4 evaluations" },
+      { "level": 3, "support": "After eight evaluations with no admissible point found, the simulator offers a worked partial derivation of x4 for the learner's current point.", "trigger": "no feasible point after 8 evaluations" },
+      { "level": 4, "support": "On request, a fully worked example at a different, non-graded operating point.", "trigger": "learner requests it" }
+    ],
+    "external_dependencies": []
+  },
+  "parameterisation": {
+    "seed_policy": { "derivation": "H(activity_id || user_id || attempt_no || course_secret)", "keyed": true },
+    "variables": [
+      { "name": "eta_t", "kind": "continuous", "range": [0.78, 0.92], "step": 0.005, "reaches_answer": true },
+      { "name": "eta_p", "kind": "continuous", "range": [0.70, 0.85], "step": 0.005, "reaches_answer": true },
+      { "name": "Wnet", "kind": "continuous", "range": [40, 185], "step": 5, "unit": "MW", "reaches_answer": true },
+      { "name": "xmin", "kind": "discrete", "values": [0.86, 0.87, 0.88, 0.89, 0.90], "reaches_answer": false },
+      { "name": "binding_constraint", "kind": "structural", "values": ["turbine_exit_moisture", "cooling_water_temperature", "boiler_material_temperature"], "reaches_answer": true }
+    ],
+    "constraints": [
+      { "expression": "exists an operating point satisfying all limits", "rationale": "Semantic invariance: every instance must be solvable, or difficulty is not constant across students." },
+      { "expression": "eta_th(optimal_feasible) - eta_th(naive_unconstrained) > 0.015", "rationale": "The binding constraint must be consequential, otherwise the instance does not assess LO3." },
+      { "expression": "35 <= mdot <= 220 kg/s", "rationale": "Keeps the required mass flow within the range of a physically plausible unit." },
+      { "expression": "0 < eta_th < 1 and 0 < x4 < 1", "rationale": "Physical bounds; violation indicates a defect in the generated model, not a hard instance." }
+    ],
+    "cardinality_target": 100000,
+    "separation_tolerance": 0.01
+  },
+  "observables": [
+    { "id": "O1", "description": "Number of distinct operating points evaluated before submission.", "type": "count", "graded": true, "maps_to_outcome": ["LO2"], "retention_days": 400 },
+    { "id": "O2", "description": "Whether the learner entered and then left the inadmissible-moisture region (evidence of constraint discovery).", "type": "boolean", "graded": true, "maps_to_outcome": ["LO3"], "retention_days": 400 },
+    { "id": "O3", "description": "Whether the pressure sweep was systematic (monotonic, one variable at a time) or unstructured.", "type": "category", "graded": true, "maps_to_outcome": ["LO2"], "retention_days": 400 },
+    { "id": "O4", "description": "Time from first interaction to first admissible operating point.", "type": "duration", "graded": false, "maps_to_outcome": ["LO3"], "retention_days": 400 },
+    { "id": "O5", "description": "Final recorded design point (all control values).", "type": "value", "graded": true, "maps_to_outcome": ["LO3"], "retention_days": 400 }
+  ],
+  "grading": {
+    "patterns": ["A_question_engine", "B_h5p_xapi", "D_workshop"],
+    "components": [
+      { "id": "G_process", "pattern": "B_h5p_xapi", "moodle_target": "H5P activity grade item (formative only)",
+        "weight": 0.0, "summative": false, "client_scored": true },
+      { "id": "G_quiz_eta", "pattern": "A_question_engine", "moodle_target": "qtype_formulas question, part 1",
+        "question_behaviour": "interactive", "penalty_per_try": 0.3333333, "weight": 0.175, "summative": true, "client_scored": false },
+      { "id": "G_quiz_wnet", "pattern": "A_question_engine", "moodle_target": "qtype_formulas question, part 2",
+        "question_behaviour": "interactive", "penalty_per_try": 0.3333333, "weight": 0.175, "summative": true, "client_scored": false },
+      { "id": "G_quiz_x4", "pattern": "A_question_engine", "moodle_target": "qtype_formulas question, part 3",
+        "question_behaviour": "interactive", "penalty_per_try": 0.3333333, "weight": 0.175, "summative": true, "client_scored": false },
+      { "id": "G_quiz_mdot", "pattern": "A_question_engine", "moodle_target": "qtype_formulas question, part 4",
+        "question_behaviour": "interactive", "penalty_per_try": 0.3333333, "weight": 0.175, "summative": true, "client_scored": false },
+      { "id": "G_workshop_justification", "pattern": "D_workshop", "moodle_target": "Workshop module, 4-criterion rubric with grading-grade",
+        "weight": 0.30, "summative": true, "client_scored": false }
+    ],
+    "gradebook": {
+      "category": "Cycle analysis",
+      "aggregation": "Natural weighting; quiz 70%, Workshop submission + assessment 30%",
+      "completion_conditions": ["H5P activity viewed and a design point recorded", "Quiz attempted"],
+      "restrict_access": ["Quiz available only after the H5P activity reaches completion", "Workshop opens after the quiz closes"]
+    }
+  },
+  "feedback": {
+    "immediate": [
+      { "trigger": "condenser pressure raised", "message": "Efficiency fell. Raising condenser pressure raises the temperature at which you reject heat, which reduces the available work.", "addresses": "M1" },
+      { "trigger": "operating point enters the shaded region", "message": "Exit quality is now below your unit's limit. This point is inadmissible regardless of its efficiency; blade erosion is the reason the limit exists.", "addresses": "M2" },
+      { "trigger": "turbine efficiency raised above 0.90", "message": "Note what happened to exit quality as turbine efficiency rose. Efficiency and admissibility are pulling in opposite directions here.", "addresses": "M2" }
+    ],
+    "per_try": [
+      "Start from the four state points. State 1 is saturated liquid at the condenser pressure; state 3 is the turbine inlet.",
+      "Find the isentropic exit state first: s4s = s3, so x4s = (s3 - sf)/sfg. Apply the isentropic efficiency to the enthalpy drop, not to the enthalpy.",
+      "If your efficiency is high but your exit quality is below x_min, the design point is inadmissible for your unit."
+    ],
+    "post_hoc": "Worked method for the learner's own instance, with the computed exit quality compared against the learner's x_min, delivered as question general feedback."
+  },
+  "load_budget": {
+    "max_simultaneous_controls": 5,
+    "max_displayed_quantities": 10,
+    "narrative_words_max": 180,
+    "animation": "functional_only"
+  },
+  "accessibility": {
+    "wcag_target": "2.2-AA",
+    "keyboard_operable": true,
+    "non_colour_encoding": true,
+    "reduced_motion_respected": true,
+    "equivalent_task_pathway": "A tabulated state-point dataset covering the learner's instance, supplied as an accessible HTML table, with the same Formulas question and the same Workshop task. Grades are identical in weight and construct."
+  },
+  "validation": {
+    "reference_solver": "artifacts/validate_rankine.py",
+    "monte_carlo_samples": 6000,
+    "agreement_tolerance": 0.001,
+    "dimensional_analysis": true,
+    "limiting_cases": [
+      { "case": "eta_t = 1 and eta_p = 1", "expected": "Reduces to the ideal Rankine cycle; efficiency matches the textbook ideal value for 8 MPa/480 C/10 kPa." },
+      { "case": "eta_t -> 0", "expected": "Net work becomes negative once pump work exceeds turbine work; the solver must report infeasibility rather than a negative efficiency." },
+      { "case": "condenser pressure -> boiler pressure", "expected": "Net work and efficiency tend to zero." }
+    ],
+    "physical_bounds": ["0 < eta_th < 1", "0 < x4 <= 1", "wnet > 0", "mdot > 0", "energy balance closes to 1e-6 relative"]
+  },
+  "provenance": {
+    "generated_by": "[model identifier and version]",
+    "generation_parameters": { "temperature": 0.2, "spec_driven": true },
+    "generated_at": "2026-09-17T00:00:00Z",
+    "spec_hash": "[sha256 of this file at generation time]",
+    "reviewed_by": "[subject matter expert]",
+    "review_outcome": "pending",
+    "review_record": "artifacts/appendix-d-review-rubric.md"
+  }
+}
